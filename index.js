@@ -25,9 +25,10 @@ function *run () {
 
   const links = []
   const $ = cheerio.load(html)
-  const $lis = $('#list a')
+  const $lis = $('#main .list a')
   $lis.each((i, el) => {
-    const title = $(el).text()
+    const title = $(el).text().trim()
+    if (!title) return // excluding a.lrc / a.tran
     const url = $(el).attr('href')
     links.push({ title, url })
   })
@@ -41,15 +42,23 @@ function *run () {
     try {
       const html = yield fetch(detailUrl)
 
+      // legacy: 2016-04-24
       // eg. Player("/201604/fusion-reactor-still-in-works.mp3");
-      const audioPath = html.match(/Player\("(.+?)"\);/)[1]
-        .substr(1) // removing leading `/`
-      const dest = join(dir, audioPath)
+      // const audioPath = html.match(/Player\("(.+?)"\);/)[1]
+      //   .substr(1) // removing leading `/`
+      // // eg. http://downdb.51voa.com/201604/fusion-reactor-still-in-works.mp3
+      // const audioUrl = `http://downdb.51voa.com/${audioPath}`
 
-      // eg. http://downdb.51voa.com/201604/fusion-reactor-still-in-works.mp3
-      const audioUrl = `http://downdb.51voa.com/${audioPath}`
+      // updated: 2022-07-27
+      // eg. $(this).jPlayer("setMedia", {
+      //    mp3:"https://files.51voa.cn/201905/drones-monitor-whale-health-in-australia.mp3" //mp3的播放地址
+      // }).jPlayer("repeat");
+      const audioUrl = html.match(/\bmp3:\s*['"](.+?)['"]/)[1]
+      const audioPath = audioUrl.split('/').pop()
+
+      const dest = join(dir, audioPath)
       console.log(`downloading... ${i}/${len} - ${link.title}`)
-      yield download(audioUrl, dest)  
+      yield download(audioUrl, dest)
     } catch (err) {
       console.error(err)
     }
